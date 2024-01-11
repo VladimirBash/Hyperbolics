@@ -1,0 +1,144 @@
+import numpy as np
+import math
+
+# Here we will generate the 2D hyperbolic lattice of size 2l x 2l
+
+print('Insert the number of iterations.')
+
+l = int(input())
+
+# Defining the huperbolic pattern
+
+print('Insert p and q')
+p = int(input())
+q = int(input())
+
+# Then the radius of the polygon is
+
+r0 = math.sqrt( math.cos(math.pi*(1/p +1/q) ) / math.cos(math.pi*(1/p - 1/q) ) )
+
+#Unit cell points
+
+sites = np.array([])
+
+
+for n in range(p):
+    sites = np.append(sites, r0*math.cos(math.pi*(1+2*n)/p) + r0*math.sin(math.pi*(1+2*n)/p)*1j )
+
+
+# Next, we generate new cells by applying translation generators (and their inverses).
+
+
+
+
+def gamma(z: np.complex128) -> np.complex128:
+    sigma = math.sqrt( (math.cos(2*math.pi / p) + math.cos(2*math.pi / q)) / (1 + math.cos(2*math.pi / q)) )
+    z = np.complex128(z)
+    result = (z + sigma) / (sigma * z + 1)
+    return result
+
+def rot(z, n):
+    z = np.complex128(z)
+    result = (math.cos(2 * math.pi * n / p) + math.sin(2 * math.pi * n / p) * 1j) * z
+    return result
+    
+def trans(z, n):
+    result = rot(z,-n)
+    result = gamma(result)
+    result = rot(result, n)
+    return result
+
+
+i=1
+print(sites.size)
+while i < l:
+    i=i+1
+    N=sites.size
+    for k in range(N):
+        for n in range(N):
+            sites = np.append(sites, trans(sites[k], n)) # we apply  generators to each side...
+    
+    sites = np.unique(sites) # and through away the repeated ones.
+
+sites = np.unique(sites)
+
+centers = np.array([])
+
+i=1
+
+while i < l:
+    i=i+1
+    for n in range(p):
+        centers = np.append(centers, trans(0, n)) # we apply  generators to each side...
+           
+
+    
+
+
+# It is useful to define the distance function
+
+def dist(x, y):
+    return math.acosh(1 + 2*abs(x-y)**2 / (1 - abs(x)**2) / (1-abs(y)**2))
+
+# Let us check again that no repeated sites are generated, and if they are, we through them away.
+
+i=0
+while i < sites.size:
+    ind_to_del = np.array([], dtype=int)
+    for k in range(i+1,  sites.size):
+        if dist(sites[i], sites[k]) < 0.01:
+            ind_to_del=np.append(ind_to_del, k)
+    sites = np.delete(sites, ind_to_del)
+    i=i+1
+
+# Having generated the lattice, we can now build the adjacncy matrix.
+
+print('We have ', sites.size,' sites in total.')
+
+N=sites.size
+adj_matrix = np.zeros((N, N), dtype = int)
+
+C = dist(r0, 0)
+B = math.asinh( math.sin( math.pi / p )*math.sinh(C))
+
+
+for i in range(N):
+    
+    for k in range(N):
+        if dist(sites[i], sites[k]) < 2*B+0.001:
+            if dist(sites[i], sites[k]) > 2*B-0.001:
+                adj_matrix[i, k] = 1    
+
+#for i in range(N):
+#    coloumn = 0
+#    for k in range(N):
+#        coloumn = coloumn + adj_matrix[i, k]
+#    print(coloumn)
+
+print(adj_matrix)
+
+# Finally, we can diagonalise the matrix and find the eigenvalues.
+
+W, V = np.linalg.eigh(adj_matrix)
+
+
+import matplotlib.pyplot as plt
+
+x_values = np.real(sites)
+y_values = np.imag(sites)
+
+x_centers = np.real(centers)
+y_centers = np.imag(centers)
+
+plt.figure(figsize=(12, 12))
+plt.scatter(x_values, y_values, color = 'green')
+plt.scatter(x_centers, y_centers, color = 'red')
+
+plt.show()
+
+x_values = W
+y_values = np.zeros(N, dtype = float)
+
+plt.figure(figsize=(10,10))
+plt.scatter(x_values, y_values, color = 'green')
+plt.show()
